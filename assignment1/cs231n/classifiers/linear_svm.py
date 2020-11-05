@@ -21,7 +21,7 @@ def svm_loss_naive(W, X, y, reg):
     - loss as single float
     - gradient with respect to weights W; an array of same shape as W
     """
-    dW = np.zeros(W.shape) # initialize the gradient as zero
+    dW = np.zeros(W.shape)  # initialize the gradient as zero
 
     # compute the loss and the gradient
     num_classes = W.shape[1]
@@ -33,9 +33,11 @@ def svm_loss_naive(W, X, y, reg):
         for j in range(num_classes):
             if j == y[i]:
                 continue
-            margin = scores[j] - correct_class_score + 1 # note delta = 1
+            margin = scores[j] - correct_class_score + 1  # note delta = 1
             if margin > 0:
                 loss += margin
+                dW.T[j] += X[i]
+                dW.T[y[i]] -= X[i]
 
     # Right now the loss is a sum over all training examples, but we want it
     # to be an average instead so we divide by num_train.
@@ -54,7 +56,7 @@ def svm_loss_naive(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    dW /= num_train
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     
@@ -78,6 +80,37 @@ def svm_loss_vectorized(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
+    N = X.shape[0]
+    C = W.shape[1]
+
+    loss_matrix = X.dot(W)  # X*W
+    # -np.repeat(W[y] + 1, W.shape[1]).reshape((X.shape[0], W.shape[1]))
+    y_mat = np.zeros((N, C))
+    y_mat[range(N), y] = 1
+    # |  0   1  ... 0 |
+    # |  1   0 .... 0 |
+    # |  0   0 ...  1 |
+    y_mat = -1*np.multiply(y_mat, loss_matrix)
+    # |  0   -w_y_1*x_1  ... 0 |
+    # |  -w_y_2*x_2   0 .... 0 |
+    # |  0   0 ...  -w_y_2*x_3 |
+    y_mat[range(N), y] += 1
+    # |  0   -w_y_1*x_1 + 1 ... 0 |
+    # |  w_y_2*x_2 + 1   0 .... 0 |
+    # |  0   0 ...  w_y_2*x_3 + 1 |
+    deltas = np.repeat(np.sum(y_mat, axis=1), C).reshape((N,C))
+    # |  -w_y_1*x_1 + 1   -w_y_1*x_1 + 1 ... -w_y_1*x_1 + 1 |
+    # |  w_y_2*x_2 + 1   w_y_2*x_2 + 1 .... w_y_2*x_2 + 1 |
+    # |  w_y_2*x_2 + 1   w_y_2*x_2 + 1 ...  w_y_2*x_3 + 1 |
+
+    loss_matrix += deltas
+    loss_matrix[range(N), y] = 0
+    result = np.maximum(np.zeros((N, C)), loss_matrix)
+    loss = result.sum()
+    loss /= float(N)
+
+    loss += reg * np.sum(W * W)
+
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -92,8 +125,14 @@ def svm_loss_vectorized(W, X, y, reg):
     # loss.                                                                     #
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    to_use = np.zeros((N,C))
+    to_use[result>0] = 1
+    to_use_correct_label = -1 * np.sum(to_use, axis=1)
+    to_use[range(N),y]= to_use_correct_label
+    dW = X.T.dot(to_use)
+    dW /= N
+    # dW += reg * W
 
-    pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 

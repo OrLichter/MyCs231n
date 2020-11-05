@@ -5,6 +5,7 @@ from builtins import object
 import numpy as np
 import matplotlib.pyplot as plt
 from past.builtins import xrange
+from scipy.special import softmax
 
 class TwoLayerNet(object):
     """
@@ -43,7 +44,7 @@ class TwoLayerNet(object):
         self.params['W2'] = std * np.random.randn(hidden_size, output_size)
         self.params['b2'] = np.zeros(output_size)
 
-    def loss(self, X, y=None, reg=0.0):
+    def loss(self, X, y = None, reg=0.0):
         """
         Compute the loss and gradients for a two layer fully connected neural
         network.
@@ -70,6 +71,7 @@ class TwoLayerNet(object):
         W1, b1 = self.params['W1'], self.params['b1']
         W2, b2 = self.params['W2'], self.params['b2']
         N, D = X.shape
+        H = W1.shape[1]
 
         # Compute the forward pass
         scores = None
@@ -80,13 +82,19 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        hidden_before_activation = X.dot(W1) + b1 # X*W1
+        activated_hidden = np.maximum(hidden_before_activation, 0)  # This is the relu
+
+        scores = activated_hidden.dot(W2) + b2 #H*W2 + b2
+        softmax_results = softmax(scores, axis=1)
+
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         # If the targets are not given then jump out, we're done
         if y is None:
             return scores
+
 
         # Compute the loss
         loss = None
@@ -98,7 +106,10 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        correct_softmax = softmax_results[range(N), y]
+        loss = np.mean(-1*np.log(correct_softmax))
+        loss += reg * (np.sum(W1 * W1) + np.sum(W2 * W2))
+
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -110,8 +121,25 @@ class TwoLayerNet(object):
         # grads['W1'] should store the gradient on W1, and be a matrix of same size #
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        ## not correct yet
 
-        pass
+        softmax_results[np.arange(N), y] -= 1
+
+
+        db2 = np.sum(softmax_results, axis=0)
+        grads['b2'] = db2/N
+
+        dW2 = activated_hidden.T.dot(softmax_results)
+        grads['W2'] = dW2/N + 2*reg*W2
+
+        dhidden = np.dot(softmax_results, W2.T)  # CxH
+        dhidden[hidden_before_activation < 0] = 0  # this is the relu derivative
+
+        grads['b1'] = np.sum(dhidden, axis=0)/N
+        grads['W1'] = X.T.dot(dhidden)/N + 2*reg*W1
+
+
+
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -223,3 +251,14 @@ class TwoLayerNet(object):
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
         return y_pred
+
+
+input_size = 2
+hidden_size = 3
+num_classes = 2
+num_inputs = 2
+
+
+def init_toy_model():
+    np.random.seed(0)
+    return TwoLayerNet(input_size, hidden_size, num_classes, std=1e-1)
